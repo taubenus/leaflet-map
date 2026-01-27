@@ -47,7 +47,7 @@
       }
 
       // Optional explicit center (fallback)
-      const centerLat = Number(params.get("lat") ?? "34.624554, ");
+      const centerLat = Number(params.get("lat") ?? "34.624554");
       const centerLon = Number(params.get("lon") ?? "135.352946");
       const zoom = parseInt(params.get("zoom") ?? "16", 10);
       const markerFlag = (params.get("marker") ?? "1") !== "0"; // allow marker=0 to disable
