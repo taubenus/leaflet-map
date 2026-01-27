@@ -18,20 +18,67 @@
     <script>
       const params = new URLSearchParams(location.search);
 
-      const lat = parseFloat(params.get("lat") ?? "52.516275");
-      const lon = parseFloat(params.get("lon") ?? "13.377704");
-      const zoom = parseInt(params.get("zoom") ?? "16", 10);
-      const marker = (params.get("marker") ?? "1") !== "0";
+      function parseLatLon(s) {
+        if (!s) return null;
+        const parts = s.split(",").map(x => x.trim());
+        if (parts.length !== 2) return null;
+        const lat = Number(parts[0]);
+        const lon = Number(parts[1]);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        return [lat, lon];
+      }
 
-      const map = L.map("map").setView([lat, lon], zoom);
+      // Collect markers from either repeated `marker=` or single `markers=...`
+      const markers = [];
+
+      // Repeated marker params: ?marker=lat,lon&marker=lat,lon
+      for (const m of params.getAll("marker")) {
+        const ll = parseLatLon(m);
+        if (ll) markers.push(ll);
+      }
+
+      // Pipe-separated list: ?markers=lat,lon|lat,lon|...
+      const markersList = params.get("markers");
+      if (markersList) {
+        for (const item of markersList.split("|")) {
+          const ll = parseLatLon(item);
+          if (ll) markers.push(ll);
+        }
+      }
+
+      // Optional explicit center (fallback)
+      const centerLat = Number(params.get("lat") ?? "52.516275");
+      const centerLon = Number(params.get("lon") ?? "13.377704");
+      const zoom = parseInt(params.get("zoom") ?? "16", 10);
+      const markerFlag = (params.get("marker") ?? "1") !== "0"; // allow marker=0 to disable
+
+      // Decide initial view:
+      // - if 1 marker: center on it
+      // - else: use lat/lon params as center
+      const initialCenter =
+        markers.length === 1 ? markers[0] : [centerLat, centerLon];
+
+      const map = L.map("map").setView(initialCenter, zoom);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
 
-      if (marker) L.marker([lat, lon]).addTo(map);
+      // Add markers
+      if (markerFlag) {
+        for (const [lat, lon] of markers) {
+          L.marker([lat, lon]).addTo(map);
+        }
+
+        // If more than one marker, fit the bounds so all are visible
+        if (markers.length > 1) {
+          const bounds = L.latLngBounds(markers.map(([lat, lon]) => [lat, lon]));
+          map.fitBounds(bounds, { padding: [20, 20] });
+        }
+      }
     </script>
+
   </body>
 </html>
  
