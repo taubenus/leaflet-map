@@ -1,3 +1,5 @@
+A leaflet html file that can be embedded via `<iframe>` in LogSeq to generate an Open Street Maps map view centered on markers specified in the iframe.
+
 Add a macro to `config.edn`
 ``` 
 :macros {
