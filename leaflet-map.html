@@ -23,6 +23,7 @@
       .pin-yellow { background: #f6b54a; }
       .pin-blue { background: #2d7cd3; }
       .pin-green { background: #2f9e44; }
+      .pin-red { background: #d94848; }
 
       .pin-glyph {
         position: absolute;
@@ -38,6 +39,14 @@
         width: 15px;
         height: 15px;
         color: #fff;
+      }
+
+      .pin-dot {
+        display: block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #fff;
       }
     </style>
   </head>
@@ -118,7 +127,7 @@
           );
         }
 
-        return null;
+        return createPinIcon("pin-red", `<span class="pin-dot" aria-hidden="true"></span>`);
       }
 
       // Collect markers from either repeated `marker=` or single `markers=...`
@@ -163,7 +172,7 @@
         for (const marker of markers) {
           const latLng = [marker.lat, marker.lon];
           const icon = getMarkerIcon(marker);
-          L.marker(latLng, icon ? { icon } : undefined).addTo(map);
+          L.marker(latLng, { icon }).addTo(map);
         }
 
         // If more than one marker, fit the bounds so all are visible
