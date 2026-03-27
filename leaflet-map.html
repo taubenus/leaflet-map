@@ -9,6 +9,36 @@
     />
     <style>
       html, body, #map { height: 100%; margin: 0; }
+
+      .pin-body {
+        position: relative;
+        width: 28px;
+        height: 28px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+      }
+
+      .pin-yellow { background: #f6b54a; }
+      .pin-blue { background: #2d7cd3; }
+      .pin-green { background: #2f9e44; }
+
+      .pin-glyph {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(45deg);
+        color: #fff;
+        font: 700 14px/1 Arial, sans-serif;
+      }
+
+      .pin-svg {
+        display: block;
+        width: 15px;
+        height: 15px;
+        color: #fff;
+      }
     </style>
   </head>
   <body>
@@ -18,30 +48,93 @@
     <script>
       const params = new URLSearchParams(location.search);
 
-      function parseLatLon(s) {
+      function parseMarkerEntry(s) {
         if (!s) return null;
-        const parts = s.split(";").map(x => x.trim());
+
+        let raw = s.trim();
+        let kind = "default";
+        let label = "";
+
+        const prefixMatch = raw.match(/^(\d+|p|w)-(.*)$/i);
+        if (prefixMatch) {
+          const prefix = prefixMatch[1].toLowerCase();
+          raw = prefixMatch[2].trim();
+
+          if (/^\d+$/.test(prefix)) {
+            kind = "number";
+            label = prefix;
+          } else if (prefix === "p") {
+            kind = "p";
+            label = "P";
+          } else if (prefix === "w") {
+            kind = "w";
+          }
+        }
+
+        const parts = raw.split(/[;,]/).map(x => x.trim());
         if (parts.length !== 2) return null;
+
         const lat = Number(parts[0]);
         const lon = Number(parts[1]);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-        return [lat, lon];
+
+        return { lat, lon, kind, label };
+      }
+
+      function escapeHtml(text) {
+        return text.replace(/[&<>"']/g, char => (
+          { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char]
+        ));
+      }
+
+      function createPinIcon(colorClass, glyphHtml) {
+        return L.divIcon({
+          className: "",
+          html: `<div class="pin-body ${colorClass}"><div class="pin-glyph">${glyphHtml}</div></div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 28],
+        });
+      }
+
+      function getMarkerIcon(marker) {
+        if (marker.kind === "number") {
+          return createPinIcon("pin-yellow", escapeHtml(marker.label));
+        }
+
+        if (marker.kind === "p") {
+          return createPinIcon("pin-blue", "P");
+        }
+
+        if (marker.kind === "w") {
+          return createPinIcon(
+            "pin-green",
+            `<svg class="pin-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="7" cy="14" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle>
+              <circle cx="17" cy="14" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle>
+              <rect x="6" y="7" width="12" height="4" fill="currentColor"></rect>
+              <rect x="4" y="8" width="3" height="2" fill="currentColor"></rect>
+              <rect x="17" y="8" width="3" height="2" fill="currentColor"></rect>
+            </svg>`
+          );
+        }
+
+        return null;
       }
 
       // Collect markers from either repeated `marker=` or single `markers=...`
       const markers = [];
 
-      // Repeated marker params: ?marker=lat,lon&marker=lat,lon
+      // Repeated marker params: ?marker=<prefix>lat;lon&marker=lat;lon
       for (const m of params.getAll("marker")) {
-        const ll = parseLatLon(m);
+        const ll = parseMarkerEntry(m);
         if (ll) markers.push(ll);
       }
 
-      // Pipe-separated list: ?markers=lat,lon|lat,lon|...
+      // Pipe-separated list: ?markers=<prefix>lat;lon|lat;lon|...
       const markersList = params.get("markers");
       if (markersList) {
         for (const item of markersList.split("|")) {
-          const ll = parseLatLon(item);
+          const ll = parseMarkerEntry(item);
           if (ll) markers.push(ll);
         }
       }
@@ -56,7 +149,7 @@
       // - if 1 marker: center on it
       // - else: use lat/lon params as center
       const initialCenter =
-        markers.length === 1 ? markers[0] : [centerLat, centerLon];
+        markers.length === 1 ? [markers[0].lat, markers[0].lon] : [centerLat, centerLon];
 
       const map = L.map("map").setView(initialCenter, zoom);
 
@@ -67,13 +160,15 @@
 
       // Add markers
       if (markerFlag) {
-        for (const [lat, lon] of markers) {
-          L.marker([lat, lon]).addTo(map);
+        for (const marker of markers) {
+          const latLng = [marker.lat, marker.lon];
+          const icon = getMarkerIcon(marker);
+          L.marker(latLng, icon ? { icon } : undefined).addTo(map);
         }
 
         // If more than one marker, fit the bounds so all are visible
         if (markers.length > 1) {
-          const bounds = L.latLngBounds(markers.map(([lat, lon]) => [lat, lon]));
+          const bounds = L.latLngBounds(markers.map(({ lat, lon }) => [lat, lon]));
           map.fitBounds(bounds, { padding: [20, 20] });
         }
       }
