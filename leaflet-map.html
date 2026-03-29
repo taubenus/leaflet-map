@@ -134,6 +134,42 @@
         return `${lat.toFixed(6)};${lon.toFixed(6)}`;
       }
 
+      function legacyCopyText(text) {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+
+        let copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch (_) {
+          copied = false;
+        }
+
+        document.body.removeChild(textarea);
+        return copied;
+      }
+
+      async function copyCoordinates(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch (_) {
+            // Fall through to legacy copy path.
+          }
+        }
+
+        return legacyCopyText(text);
+      }
+
       // Collect markers from either repeated `marker=` or single `markers=...`
       const markers = [];
 
@@ -173,21 +209,58 @@
 
       map.on("click", async (event) => {
         const coordText = formatLatLon(event.latlng.lat, event.latlng.lng);
-        let copied = false;
+        const copied = await copyCoordinates(coordText);
 
-        if (navigator.clipboard && window.isSecureContext) {
-          try {
-            await navigator.clipboard.writeText(coordText);
-            copied = true;
-          } catch (_) {
-            copied = false;
-          }
+        const content = document.createElement("div");
+        const coordValue = document.createElement("strong");
+        coordValue.textContent = coordText;
+        content.appendChild(coordValue);
+
+        const status = document.createElement("small");
+        status.style.display = "block";
+        status.style.marginTop = "4px";
+
+        if (copied) {
+          status.textContent = "Copied to clipboard.";
+          content.appendChild(status);
+        } else {
+          status.textContent = "Auto-copy unavailable in this embed.";
+          content.appendChild(status);
+
+          const copyButton = document.createElement("button");
+          copyButton.type = "button";
+          copyButton.textContent = "Copy";
+          copyButton.style.marginTop = "6px";
+
+          const fallbackField = document.createElement("input");
+          fallbackField.type = "text";
+          fallbackField.readOnly = true;
+          fallbackField.value = coordText;
+          fallbackField.style.display = "block";
+          fallbackField.style.marginTop = "6px";
+          fallbackField.style.width = "220px";
+          fallbackField.addEventListener("focus", () => fallbackField.select());
+          fallbackField.addEventListener("click", () => fallbackField.select());
+
+          copyButton.addEventListener("click", async () => {
+            const ok = await copyCoordinates(coordText);
+            status.textContent = ok
+              ? "Copied to clipboard."
+              : "Copy blocked. Select text and press Ctrl+C.";
+
+            if (!ok) {
+              fallbackField.focus();
+              fallbackField.select();
+            }
+          });
+
+          content.appendChild(copyButton);
+          content.appendChild(fallbackField);
         }
 
-        const copyHint = copied ? "<br><small>Copied to clipboard.</small>" : "";
         L.popup()
           .setLatLng(event.latlng)
-          .setContent(`<strong>${coordText}</strong>${copyHint}`)
+          .setContent(content)
           .openOn(map);
       });
 
