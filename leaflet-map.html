@@ -130,6 +130,10 @@
         return createPinIcon("pin-red", `<span class="pin-dot" aria-hidden="true"></span>`);
       }
 
+      function formatLatLon(lat, lon) {
+        return `${lat.toFixed(6)};${lon.toFixed(6)}`;
+      }
+
       // Collect markers from either repeated `marker=` or single `markers=...`
       const markers = [];
 
@@ -166,6 +170,26 @@
         maxZoom: 19,
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
+
+      map.on("click", async (event) => {
+        const coordText = formatLatLon(event.latlng.lat, event.latlng.lng);
+        let copied = false;
+
+        if (navigator.clipboard && window.isSecureContext) {
+          try {
+            await navigator.clipboard.writeText(coordText);
+            copied = true;
+          } catch (_) {
+            copied = false;
+          }
+        }
+
+        const copyHint = copied ? "<br><small>Copied to clipboard.</small>" : "";
+        L.popup()
+          .setLatLng(event.latlng)
+          .setContent(`<strong>${coordText}</strong>${copyHint}`)
+          .openOn(map);
+      });
 
       // Add markers
       if (markerFlag) {
