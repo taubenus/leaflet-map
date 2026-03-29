@@ -23,6 +23,7 @@
       .pin-yellow { background: #f6b54a; }
       .pin-blue { background: #2d7cd3; }
       .pin-green { background: #2f9e44; }
+      .pin-orange { background: #f08c2e; }
       .pin-red { background: #d94848; }
 
       .pin-glyph {
@@ -64,7 +65,7 @@
         let kind = "default";
         let label = "";
 
-        const prefixMatch = raw.match(/^(\d+|p|w)-(.*)$/i);
+        const prefixMatch = raw.match(/^(\d+|p|w|z)-(.*)$/i);
         if (prefixMatch) {
           const prefix = prefixMatch[1].toLowerCase();
           raw = prefixMatch[2].trim();
@@ -77,6 +78,8 @@
             label = "P";
           } else if (prefix === "w") {
             kind = "w";
+          } else if (prefix === "z") {
+            kind = "z";
           }
         }
 
@@ -123,6 +126,17 @@
               <rect x="6" y="7" width="12" height="4" fill="currentColor"></rect>
               <rect x="4" y="8" width="3" height="2" fill="currentColor"></rect>
               <rect x="17" y="8" width="3" height="2" fill="currentColor"></rect>
+            </svg>`
+          );
+        }
+
+        if (marker.kind === "z") {
+          return createPinIcon(
+            "pin-orange",
+            `<svg class="pin-svg" style="color:#111" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M9 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+              <path d="M2 12h11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path>
+              <path d="M9 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>`
           );
         }
